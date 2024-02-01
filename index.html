@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Prueba 4 Three.js</title>
+</head>
+
+<body> 
+    <script type="module">
+        import * as THREE from './JS/three.module.js';
+        import { OrbitControls } from './JS/OrbitControls.js';
+        import { GLTFLoader } from './JS/GLTFLoader.js';;
+        import { GUI } from './JS/lil-gui.module.min.js';
+    
+        // Crear Escena/Definir Fondo
+        var Escena = new THREE.Scene();
+        var CTexturaFondo = new THREE.TextureLoader();
+        CTexturaFondo.crossOrigin = "Anonymous";
+        CTexturaFondo.load('./Recursos/Skybox.jpg', function (TexturaFondo) {
+            Escena.background = TexturaFondo;
+        });
+
+        // Cámaras:
+        let CamaraPerspectiva, CamaraOrtografica, controles;
+        const valorCO = 60;
+
+        function alternarModoCamara() {
+            if (CamaraPerspectiva && CamaraPerspectiva instanceof THREE.PerspectiveCamera) {
+                // Cambiar a cámara ortográfica
+                CamaraPerspectiva = null;
+                CamaraOrtografica = new THREE.OrthographicCamera(-valorCO, valorCO, valorCO / (window.innerWidth / window.innerHeight), -valorCO / (window.innerWidth / window.innerHeight), 0.1, 100);
+                CamaraOrtografica.position.set(50, 25, 30);
+                CamaraOrtografica.lookAt(50, 25, 0);
+            } else {
+                // Cambiar a cámara de perspectiva
+                CamaraOrtografica = null;
+                CamaraPerspectiva = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight);
+                CamaraPerspectiva.position.set(50,25,30); // Establecer la posición de la cámara
+                CamaraPerspectiva.lookAt(50,25,0); // Orientar la cámara hacia el objetivo
+            }
+        }
+       
+        // Crear Render
+        var Render = new THREE.WebGLRenderer();
+        Render.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(Render.domElement);
+        Render.setPixelRatio(window.devicePixelRatio);
+        Render.shadowMap.enabled = true;
+
+        // Crear Luz
+        const luz = new THREE.AmbientLight(0xffffff);
+        Escena.add(luz);
+
+        //Aleatorio
+        let colorPar =0x000000;
+        let colorImp =0xffffff;
+        function getRandomInt(max) {
+            return Math.floor(Math.random() * max);}
+        var cancionAleatoria = getRandomInt(4);
+            switch(cancionAleatoria) {
+            case 0:
+                var camino = './Recursos/Connect.mp3';
+                colorPar =0xff07d6;
+                colorImp =0xff07d6;
+                break;
+            case 1:
+                var camino = './Recursos/Derezzed.mp3';
+                colorPar =0xff07d6;
+                colorImp =0xff07d6;
+                break;
+            case 2:
+                var camino = './Recursos/RunningAway.mp3';
+                colorPar =0xff07d6;
+                colorImp =0xff07d6;
+                break;
+            case 3:
+                var camino = './Recursos/OneLastKiss.mp3';
+                colorPar =0xff07d6;
+                colorImp =0xff07d6;
+                break;   
+            default:
+            console.log('error');}
+
+        //Añade Musica
+        const listener = new THREE.AudioListener();
+        //Camara.add( listener );
+        const musica = new THREE.PositionalAudio( listener );
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load( camino, function( buffer ) {
+        musica.setBuffer( buffer );
+	    musica.setLoop( true );
+	    musica.setVolume( 1 ); 
+        musica.setRefDistance(30);
+        });
+        const analyser = new THREE.AudioAnalyser( musica, 32 );
+
+        //Botones
+	    const gui = new GUI();
+        const audioControls = {
+            play: function() {
+                musica.play();
+            },
+            pause: function() {
+            musica.pause();
+            }
+        };
+        gui.add(audioControls, 'play');
+        gui.add(audioControls, 'pause');
+
+        // Codigo Piso
+        const largoPiso = 100;
+        const anchoPiso = 40;
+        var Piso = new THREE.Mesh(new THREE.BoxGeometry(largoPiso, anchoPiso, 1),
+            new THREE.MeshStandardMaterial(
+                { map: new THREE.TextureLoader().load('Recursos/StarPath.jpg') }));
+        Piso.position.set(largoPiso/2, anchoPiso/2, 0);
+        Escena.add(Piso);
+
+        // Codigo Paredes
+        var ParedIzq = new THREE.Mesh(new THREE.BoxGeometry(largoPiso, 10, 40),
+            new THREE.MeshStandardMaterial(
+                { map: new THREE.TextureLoader().load('Recursos/Lineas.png') }));
+        ParedIzq.position.set(50, 45, 20);
+        Escena.add(ParedIzq);
+        var ParedDer = new THREE.Mesh(new THREE.BoxGeometry(largoPiso, 10, 40),
+            new THREE.MeshStandardMaterial(
+                { map: new THREE.TextureLoader().load('Recursos/Lineas.png') }));
+        ParedDer.position.set(50, -5, 20);
+        Escena.add(ParedDer);
+
+        //Auxiliares Zonas
+        function crearZonaAuxiliar(geometria, material, posicion) {
+            const zona = new THREE.Mesh(geometria, material);
+            zona.position.copy(posicion);
+            //Escena.add(zona);
+        }
+        const geometriaAuxZonas1 = new THREE.BoxGeometry(10, 40, 1);
+        const geometriaAuxZonas2 = new THREE.BoxGeometry(30, 40, 1);
+        const geometriaAuxZonas3 = new THREE.BoxGeometry(20, 40, 1);
+
+        const materialAuxZonaRoja = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const materialAuxZonaVerde = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const materialAuxZonaAzul = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+        const materialAuxZonaAmarillo = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const materialAuxZonaBlanco = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+        crearZonaAuxiliar(geometriaAuxZonas1, materialAuxZonaRoja, new THREE.Vector3(5, 20, 1)); // ZonaBorrado
+        crearZonaAuxiliar(geometriaAuxZonas2, materialAuxZonaAzul, new THREE.Vector3(25, 20, 1)); // ZonaMovimiento
+        crearZonaAuxiliar(geometriaAuxZonas2, materialAuxZonaAmarillo, new THREE.Vector3(55, 20, 1)); // ZonaVision
+        crearZonaAuxiliar(geometriaAuxZonas3, materialAuxZonaVerde, new THREE.Vector3(80, 20, 1)); // ZonaCreacion
+        crearZonaAuxiliar(geometriaAuxZonas1, materialAuxZonaBlanco, new THREE.Vector3(95, 20, 1)); // ZonaModelo
+
+        //Auxiliar Nave
+        const geometriaAuxNave = new THREE.SphereGeometry(.1, 32, 32);
+        const materialAuxNave = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const AuxNave = new THREE.Mesh(geometriaAuxNave, materialAuxNave);
+        AuxNave.position.set(25, 20, 10);
+        Escena.add(AuxNave);
+        
+        // Codigo Nave
+        let NaveCargada = false;
+        let Nave;
+        const CargadorNave = new GLTFLoader();
+        CargadorNave.load('./Recursos/NaveRoja.gltf', (loadedObject1) => {
+            Nave = loadedObject1.scene;
+            Nave.scale.set(1, 1, 1);
+            Nave.position.set(1, 0, 0);
+            Nave.rotation.set(0, -Math.PI/2, -Math.PI/2);
+            AuxNave.add(Nave);
+            NaveCargada = true;
+            });  
+
+        //BOX
+        let BoxCargada = false;
+        let Box;
+        const CargadorBox = new GLTFLoader();
+        CargadorBox.load('./Recursos/Box.glb', (loadedObject2) => {
+            Box = loadedObject2.scene;
+            Box.scale.set(6, 13, 10);
+            Box.position.set(100, 20, 0);
+            Box.rotation.set(0, -Math.PI/2, -Math.PI/2);
+            Escena.add(Box);
+            BoxCargada = true;
+        });
+
+        //Cambiar la camara
+        window.addEventListener('keydown', function(event) {
+            if (event.key === 'o') {
+                alternarModoCamara();
+            }
+        });
+
+        // Crear camara ortográfica inicialmente
+        alternarModoCamara();
+        //alternarModoCamara(); 
+
+         //Teclado
+        const teclasFunciones = {
+            'w': {
+                presionada: false,
+            },
+            'a': {
+                presionada: false,
+            },
+            's': {
+                presionada: false,
+            },
+            'd': {
+                presionada: false,
+            }
+        };
+
+        document.addEventListener('keydown', function (event) {
+            const tecla = event.key;
+            if (teclasFunciones[tecla] && !teclasFunciones[tecla].presionada) {
+                teclasFunciones[tecla].presionada = true;
+                //teclasFunciones[tecla].activar();
+            }
+        });
+
+        document.addEventListener('keyup', function (event) {
+            const tecla = event.key;
+            if (teclasFunciones[tecla]) {
+                teclasFunciones[tecla].presionada = false;
+                //teclasFunciones[tecla].detener();
+            }
+        });
+
+        function crearCubo(coordenadas, colores) {
+            const geometriaCubo = new THREE.BoxGeometry(10, 10, 10);
+            const materialCubo = new THREE.MeshBasicMaterial({ color: colores });
+            const cubo = new THREE.Mesh(geometriaCubo, materialCubo);
+            cubo.position.copy(coordenadas);
+            cubo.userData.mover = true;
+            Escena.add(cubo);
+        }
+
+        function eliminarCubosExcedidos() {
+            const coordenadaLimiteX = 0; 
+            const cubosAEliminar = Escena.children.filter(objeto => {
+                return objeto instanceof THREE.Mesh && objeto.position.x < coordenadaLimiteX && objeto.userData.mover;
+                });
+
+            cubosAEliminar.forEach(cubo => {
+                Escena.remove(cubo);
+            });
+        }
+
+        function moverCubos(deltaTime) {
+            const velocidadMovimiento = 50; //unidades por segundo
+            Escena.children.forEach(objeto => {
+                if (objeto instanceof THREE.Mesh && objeto.userData.mover) {
+                    const movimiento = velocidadMovimiento * deltaTime;
+                    objeto.position.x += -movimiento; // Por ejemplo, movemos el cubo con una velocidad constante
+                }
+            });
+
+            eliminarCubosExcedidos();
+        }
+
+
+        // Delta Tiempo y animaciones
+        let tiempoAnterior = 0;
+        const velocidadMovimiento = 10;
+        const velocidadRotacion = Math.PI / 2;
+        let anguloObjetivo = 0;
+        let tiempoTranscurrido = 0;
+        let tiempoAcumulado=0;
+        var a=0; var b=0; var c=0; var d=0; var e=0; var f=0; var g=0; var h=0;
+        var i=0; var j=0; var k=0; var l=0; var m=0; var n=0; var o=0; var p=0;
+
+        function Animacion(tiempoActual) {
+            const deltaTime = (tiempoActual - tiempoAnterior) / 1000;
+            tiempoAnterior = tiempoActual;
+            tiempoAcumulado += deltaTime;
+
+            //Controles y Animaciones de la Nave
+            if (NaveCargada== true){
+
+                if (teclasFunciones['w'].presionada && AuxNave.position.z <36) {
+                    const rotacionActualY = Nave.rotation.y;
+                    const rotacionObjetivoY = -Math.PI*3 / 5;
+                    Nave.rotation.y = THREE.MathUtils.lerp(rotacionActualY, rotacionObjetivoY, velocidadRotacion * deltaTime);
+
+                    const rotacionActualZ = Nave.rotation.z;
+                    const rotacionObjetivoZ = -Math.PI / 2;
+                    Nave.rotation.z = THREE.MathUtils.lerp(rotacionActualZ, rotacionObjetivoZ, velocidadRotacion * deltaTime);
+
+                    const velocidad = new THREE.Vector3(0, 0, velocidadMovimiento * deltaTime);
+                    AuxNave.position.add(velocidad);
+                }
+           
+                if (teclasFunciones['a'].presionada && AuxNave.position.y <36) {
+                    const rotacionActual = Nave.rotation.x;
+                    const rotacionObjetivo = -Math.PI;
+                    Nave.rotation.x = THREE.MathUtils.lerp(rotacionActual, rotacionObjetivo, velocidadRotacion * deltaTime);
+                    const velocidad = new THREE.Vector3(0, velocidadMovimiento * deltaTime, 0);
+                    AuxNave.position.add(velocidad);
+                }
+
+                if (teclasFunciones['s'].presionada && AuxNave.position.z >4) {
+                    const rotacionActualY = Nave.rotation.y;
+                    const rotacionObjetivoY = -Math.PI / 3;
+                    Nave.rotation.y = THREE.MathUtils.lerp(rotacionActualY, rotacionObjetivoY, velocidadRotacion * deltaTime);
+
+                    const rotacionActualZ = Nave.rotation.z;
+                    const rotacionObjetivoZ = -Math.PI / 2;
+                    Nave.rotation.z = THREE.MathUtils.lerp(rotacionActualZ, rotacionObjetivoZ, velocidadRotacion * deltaTime);
+
+                    const velocidad = new THREE.Vector3(0, 0, -velocidadMovimiento * deltaTime);
+                    AuxNave.position.add(velocidad);;
+                }
+
+                if (teclasFunciones['d'].presionada && AuxNave.position.y >4) {
+                    const rotacionActual = Nave.rotation.x;
+                    const rotacionObjetivo = Math.PI/ 2;
+                    Nave.rotation.x = THREE.MathUtils.lerp(rotacionActual, rotacionObjetivo, velocidadRotacion * deltaTime);
+                    const velocidad = new THREE.Vector3(0, -velocidadMovimiento * deltaTime, 0);
+                    AuxNave.position.add(velocidad);
+                }else {
+                    const rotacionActualX = Nave.rotation.x;
+                    const anguloObjetivoX = 0;
+                    Nave.rotation.x = THREE.MathUtils.lerp(rotacionActualX, anguloObjetivoX, velocidadRotacion * deltaTime);
+
+                    const rotacionActualY = Nave.rotation.y;
+                    const anguloObjetivoY = -Math.PI / 2;
+                    Nave.rotation.y = THREE.MathUtils.lerp(rotacionActualY, anguloObjetivoY, velocidadRotacion * deltaTime);
+
+                    const rotacionActualZ = Nave.rotation.z;
+                    const anguloObjetivoZ = -Math.PI / 2;
+                    Nave.rotation.z = THREE.MathUtils.lerp(rotacionActualZ, anguloObjetivoZ, velocidadRotacion * deltaTime);
+                }
+            }
+
+            var controladorData=analyser.getFrequencyData();
+            if (tiempoAcumulado >= 1) {
+
+                // Controlador A
+                a = controladorData[15];
+                if (a > 100) {
+                    crearCubo(new THREE.Vector3(85, 5, 5), colorPar);
+                }
+
+                // Controlador B
+                b = controladorData[11];
+                if (b > 100) {
+                    crearCubo(new THREE.Vector3(85, 15, 5), colorImp);
+                }
+
+                // Controlador C
+                c = controladorData[10];
+                if (c > 100) {
+                    crearCubo(new THREE.Vector3(85, 25, 25), colorPar);
+                }
+
+                // Controlador D
+                d = controladorData[14];
+                if (d > 100) {
+                    crearCubo(new THREE.Vector3(85, 35, 5), colorImp);
+                }
+
+                // Controlador E
+                e = controladorData[9];
+                if (e > 100) {
+                    crearCubo(new THREE.Vector3(85, 5, 15), colorImp);
+                }
+
+                // Controlador F
+                f = controladorData[3];
+                if (f > 100) {
+                    crearCubo(new THREE.Vector3(85, 15, 15), colorPar);
+                }
+
+                // Controlador G
+                g = controladorData[2];
+                if (g > 100) {
+                    crearCubo(new THREE.Vector3(85, 25, 15), colorImp);
+                }
+
+                // Controlador H
+                h = controladorData[8];
+                if (h > 100) {
+                    crearCubo(new THREE.Vector3(85, 35, 15), colorPar);
+                }
+
+                // Controlador I
+                i = controladorData[7];
+                if (i > 100) {
+                    crearCubo(new THREE.Vector3(85, 5, 25), colorPar);
+                }
+
+                // Controlador J
+                j = controladorData[1];
+                if (j > 100) {
+                    crearCubo(new THREE.Vector3(85, 15, 25), colorImp);
+                }
+
+                // Controlador K
+                k = controladorData[0];
+                if (k > 100) {
+                    crearCubo(new THREE.Vector3(85, 25, 25), colorPar);
+                }
+
+                // Controlador L
+                l = controladorData[6];
+                if (l > 100) {
+                    crearCubo(new THREE.Vector3(85, 35, 25), colorImp);
+                }
+
+                // Controlador M
+                m = controladorData[13];
+                if (m > 100) {
+                    crearCubo(new THREE.Vector3(85, 5, 35), colorImp);
+                }
+
+                // Controlador N
+                n = controladorData[5];
+                if (n > 100) {
+                    crearCubo(new THREE.Vector3(85, 15, 35), colorPar);
+                }
+
+                // Controlador O
+                o = controladorData[4];
+                if (o > 100) {
+                    crearCubo(new THREE.Vector3(85, 25, 35), colorImp);
+                }
+
+                // Controlador P
+                p = controladorData[12];
+                if (p > 100) {
+                    crearCubo(new THREE.Vector3(85, 35, 35), colorPar);
+                }
+                //console.log("Han pasado 3 segundos"); 
+                tiempoAcumulado -= 3;
+            }
+
+            moverCubos(deltaTime);
+
+            //Actualizar Camara
+            if (CamaraPerspectiva) {
+                CamaraPerspectiva.position.set(AuxNave.position.x-5,AuxNave.position.y,AuxNave.position.z+1);
+                CamaraPerspectiva.lookAt(AuxNave.position.x,AuxNave.position.y,AuxNave.position.z);
+                CamaraPerspectiva.rotateZ(-Math.PI / 2);
+            }
+
+            //console.log(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p);
+            requestAnimationFrame(Animacion);
+            const camara = CamaraPerspectiva ? CamaraPerspectiva : CamaraOrtografica; 
+
+            Render.render(Escena, camara);
+        }
+
+        function iniciarAnimacion() {
+            requestAnimationFrame(function (timestamp) {
+                tiempoAnterior = timestamp;
+                Animacion(timestamp);
+            });
+        }
+        iniciarAnimacion();
+
+    </script>
+</body>
+</html>
